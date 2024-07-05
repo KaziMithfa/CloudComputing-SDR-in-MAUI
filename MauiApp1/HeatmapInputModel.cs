@@ -7,16 +7,16 @@ public class HeatmapInputModel
     public string CsvContent { get; set; }
     public bool UseFileInput { get; set; } = true;
 
-    [Required(ErrorMessage = "Highlight touch is required.")]
+    [Required(ErrorMessage = "Highlight touch is mandatory.")]
     public int HighlightTouch { get; set; }
 
-    [Required(ErrorMessage = "Figure name is required.")]
+    [Required(ErrorMessage = "Figure name is mandatory.")]
     public string FigureName { get; set; }
 
-    [Required(ErrorMessage = "X Axis label is required.")]
+    [Required(ErrorMessage = "X Axis label is mandatory.")]
     public string XAxisTitle { get; set; }
 
-    [Required(ErrorMessage = "Y Axis label is required.")]
+    [Required(ErrorMessage = "Y Axis label is mandatory.")]
     public string YAxisTitle { get; set; }
 
     public int? MaxCycles { get; set; }
