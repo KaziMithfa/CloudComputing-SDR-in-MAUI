@@ -1,0 +1,197 @@
+﻿@page "/generatechart"
+
+@using System.Text
+@using System.Text.Json
+@using Azure.Storage.Blobs
+@using MauiApp1.Services
+@using SkiaSharp
+@using Svg.Skia
+@using System.IO
+@using Microsoft.Maui.Storage
+@using MauiApp1.Models
+@inject CsvDataService CsvDataService
+@inject IConfigService ConfigService
+@inject IJSRuntime JSRuntime
+
+<button @onclick="GenerateAndUploadChartImages" class="btn btn-primary">Generate Charts</button>
+
+@code {
+    private ConfigModel configModel = new ConfigModel();
+    private List<HashSet<int>> activeCellsColumn = new();
+    private bool isHorizontal = false;
+    private int numTouches;
+    private int count;
+    private int highlightTouch = 0;
+    private string xAxisTitle = "X-Axis";
+    private string yAxisTitle = "Y-Axis";
+    private string figureName = "Activity Graph";
+
+    private int maxCycles = 0;
+    private int minCell = 0;
+    private int maxCell = 100;
+    private int minTouch = 0;
+    private int maxTouch = 100;
+    private float originalCellWidth = 15;
+    private float originalCellHeight = 3;
+    private float cellWidth = 15;
+    private float cellHeight = 3;
+    private const int cellPadding = 1;
+    private float chartPadding = 110;
+    private float chartWidth = 800;
+    private float chartHeight = 600;
+    private HeatmapInputModel heatmapInputModel = new HeatmapInputModel();
+
+    protected override async Task OnInitializedAsync()
+    {
+        configModel = await ConfigService.LoadConfigAsync();
+    }
+
+    public async Task GenerateAndUploadChartImages()
+    {
+        var blobServiceClient = new BlobServiceClient(configModel.ConnectionString);
+        var containerClient = blobServiceClient.GetBlobContainerClient(configModel.FileContainerName);
+        await foreach (var blobItem in containerClient.GetBlobsAsync())
+        {
+            var blobClient = containerClient.GetBlobClient(blobItem.Name);
+            var response = await blobClient.DownloadAsync();
+
+            using (var stream = new MemoryStream())
+            {
+                await response.Value.Content.CopyToAsync(stream);
+                stream.Position = 0;
+
+                var result = await CsvDataService.ReadDataFromCsvAsync(stream);
+                activeCellsColumn = result.Item1;
+                await GenerateChartAsync();
+
+                var svgContent = GenerateSvgContent();
+                var fileName = $"{Path.GetFileNameWithoutExtension(blobItem.Name)}.png";
+                await SaveSvgAsImageAsync(svgContent, fileName);
+
+                var imageBlobClient = new BlobClient(configModel.ConnectionString, configModel.ImageContainerName, fileName);
+                using var imageStream = File.OpenRead(Path.Combine(FileSystem.CacheDirectory, fileName));
+                await imageBlobClient.UploadAsync(imageStream, true);
+            }
+        }
+    }
+
+    private async Task GenerateChartAsync()
+    {
+        // Assuming this function generates chart data
+        // No need to modify this unless there are issues related to configuration loading
+
+        highlightTouch = heatmapInputModel.HighlightTouch - 1;
+        figureName = heatmapInputModel.FigureName;
+        xAxisTitle = heatmapInputModel.XAxisTitle;
+        yAxisTitle = heatmapInputModel.YAxisTitle;
+        isHorizontal = heatmapInputModel.IsHorizontal;
+        numTouches = Math.Min(activeCellsColumn.Count, heatmapInputModel.MaxCycles.HasValue ?
+            heatmapInputModel.MaxCycles.Value : 1000);
+
+        // Swapping height and width of a cell based on orientation
+        if (isHorizontal)
+        {
+            cellWidth = originalCellHeight;
+            cellHeight = originalCellWidth;
+        }
+        else
+        {
+            cellWidth = originalCellWidth;
+            cellHeight = originalCellHeight;
+        }
+
+        // Dynamically calculating charts dimension
+        CalculateChartDimensions();
+        StateHasChanged();
+    }
+
+    private void CalculateChartDimensions()
+    {
+        minCell = int.MaxValue;
+        maxCell = int.MinValue;
+
+        foreach (var column in activeCellsColumn)
+        {
+            if (column.Any())
+            {
+                int currentMin = column.Min();
+                int currentMax = column.Max();
+
+                if (currentMin < minCell)
+                    minCell = currentMin;
+                if (currentMax > maxCell)
+                    maxCell = currentMax;
+            }
+        }
+
+        if (minCell == int.MaxValue && maxCell == int.MinValue)
+        {
+            minCell = 0;
+            maxCell = 0;
+        }
+
+        minTouch = 0;
+        maxTouch = numTouches;
+
+        if (isHorizontal)
+        {
+            int cellRangeSpan = activeCellsColumn.Max(col => col.Max()) + 1 - minCell;
+            chartWidth = (cellRangeSpan * (cellWidth - 2)) + chartPadding + 200;
+            chartHeight = (numTouches * (cellHeight + cellPadding)) + chartPadding + 50;
+        }
+        else
+        {
+            int cellRangeSpan = activeCellsColumn.Max(col => col.Max()) + 1 - minCell;
+            chartHeight = (cellRangeSpan * (cellHeight - 2)) + chartPadding + 50;
+            chartWidth = (numTouches * (cellWidth + cellPadding)) + chartPadding + 200;
+        }
+    }
+
+    private string GenerateSvgContent()
+    {
+        var svgDocument = new SKSvg();
+        var svg = new StringBuilder();
+
+        svg.AppendLine(@"<svg xmlns=""http://www.w3.org/2000/svg"" version=""1.1"" width=""1000"" height=""1000"">");
+
+        for (int rowIndex = 0; rowIndex < numTouches; rowIndex++)
+        {
+            var yPos = chartHeight - (rowIndex * (cellHeight + cellPadding)) - chartPadding;
+            foreach (var cell in activeCellsColumn[rowIndex])
+            {
+                var xPos = ((cell - minCell + 1) * (cellWidth - 2)) + chartPadding;
+                svg.AppendLine($@"<rect x=""{xPos}"" y=""{yPos}"" width=""{cellWidth}"" height=""{cellHeight}"" fill=""lightblue"" />");
+
+                if (rowIndex == highlightTouch)
+                {
+                    svg.AppendLine($@"<rect x=""{chartPadding - 50}"" y=""{yPos}"" width=""{chartWidth - chartPadding}"" height=""{cellHeight}"" fill=""none"" stroke=""rgba(255, 0, 0, 0.5)"" stroke-width=""2"" />");
+                }
+            }
+        }
+
+        svg.AppendLine("</svg>");
+
+        return svg.ToString();
+    }
+
+    private async Task SaveSvgAsImageAsync(string svgContent, string filename)
+    {
+        var svg = new SKSvg();
+        svg.FromSvg(svgContent);
+
+        var bitmap = new SKBitmap((int)svg.Picture.CullRect.Width, (int)svg.Picture.CullRect.Height);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.White);
+        canvas.DrawPicture(svg.Picture);
+        canvas.Flush();
+
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 80);
+
+        string folderPath = FileSystem.CacheDirectory;
+        string filePath = Path.Combine(folderPath, filename);
+
+        using var stream = File.OpenWrite(filePath);
+        data.SaveTo(stream);
+    }
+}
