@@ -1,0 +1,42 @@
+﻿@page "/uploadcsv"
+
+@using System.Text.Json
+@using Azure.Storage.Blobs
+@using Microsoft.AspNetCore.Components.Forms
+@using MauiApp1.Models
+@using MauiApp1.Services
+@inject IConfigService ConfigService
+
+<EditForm Model="@uploadModel" OnValidSubmit="HandleFileUpload">
+    <div class="form-group">
+        <label>CSV File:</label>
+        <InputFile OnChange="HandleFileSelected" accept=".csv" />
+    </div>
+    <button type="submit" class="btn btn-primary">Upload CSV</button>
+</EditForm>
+
+@code {
+    private CsvUploadModel uploadModel = new CsvUploadModel();
+    private ConfigModel configModel = new ConfigModel();
+
+    protected override async Task OnInitializedAsync()
+    {
+        configModel = await ConfigService.LoadConfigAsync();
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadModel.CsvFile = e.File;
+    }
+
+    private async Task HandleFileUpload()
+    {
+        if (uploadModel.CsvFile != null)
+        {
+            var maxFileSize = 1024 * 1024;
+            using var stream = uploadModel.CsvFile.OpenReadStream(maxFileSize);
+            var blobClient = new BlobClient(configModel.ConnectionString, configModel.FileContainerName, uploadModel.CsvFile.Name);
+            await blobClient.UploadAsync(stream, true);
+        }
+    }
+}
