@@ -409,7 +409,8 @@
 		{
 			step = (range / magnitude < 5) ? magnitude : magnitude * 5;
 		}
-		catch(Exception ex){
+		catch (Exception ex)
+		{
 			step = 5;
 		}
 
@@ -472,7 +473,8 @@
 		{
 			step = (range / magnitude < 5) ? magnitude : magnitude * 5;
 		}
-		catch(Exception ex){
+		catch (Exception ex)
+		{
 			step = 5;
 		}
 
@@ -518,8 +520,8 @@
 }
 
 <script>
-    function getSvgContent() {
-        var svg = document.getElementById('heatmapSvg');
-        return svg.outerHTML;
+	function getSvgContent() {
+		var svg = document.getElementById('heatmapSvg');
+		return svg.outerHTML;
 	}
 </script>
