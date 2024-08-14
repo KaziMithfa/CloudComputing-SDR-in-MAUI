@@ -22,6 +22,8 @@ namespace MauiApp1
             builder.Services.AddSingleton<IPath, PathService>();
             builder.Services.AddSingleton<IExceptionHandler, ExceptionHandler>();
             builder.Services.AddSingleton<IConfigService, ConfigService>();
+            builder.Services.AddSingleton<ListeningStateService>();
+
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
