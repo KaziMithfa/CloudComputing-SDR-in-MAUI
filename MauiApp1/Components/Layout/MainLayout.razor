@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@using MauiApp1.Services
+@inject ListeningStateService ListeningStateService
 
 <div class="page">
     <div class="sidebar">
@@ -6,9 +8,32 @@
     </div>
 
     <main>
-
+        <div class="top-row px-4">
+            @if (ListeningStateService.IsActive)
+            {
+                <span class="badge bg-warning text-dark">Listening Mode Active</span>
+                <button class="btn btn-danger btn-sm ms-2" @onclick="StopListening">Stop Listening</button>
+            }
+        </div>
         <article class="content px-4">
             @Body
         </article>
     </main>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ListeningStateService.OnChange += StateHasChanged;
+    }
+
+    private void StopListening()
+    {
+        ListeningStateService.StopListening();
+    }
+
+    public void Dispose()
+    {
+        ListeningStateService.OnChange -= StateHasChanged;
+    }
+}

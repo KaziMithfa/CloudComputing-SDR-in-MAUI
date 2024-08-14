@@ -1,0 +1,78 @@
+﻿@page "/chartconfiguration"
+
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Maui.Storage
+@inject IJSRuntime JSRuntime
+
+<EditForm Model="@heatmapInputModel" OnValidSubmit="SaveConfiguration">
+    <div class="form-container">
+        <div class="form-row">
+            <label>Highlight Touch:</label>
+            <InputNumber @bind-Value="heatmapInputModel.HighlightTouch" class="form-control" />
+        </div>
+        <div class="form-row">
+            <label>Figure Name:</label>
+            <InputText @bind-Value="heatmapInputModel.FigureName" class="form-control" />
+        </div>
+        <div class="form-row">
+            <label>X Axis Title:</label>
+            <InputText @bind-Value="heatmapInputModel.XAxisTitle" class="form-control" />
+        </div>
+        <div class="form-row">
+            <label>Y Axis Title:</label>
+            <InputText @bind-Value="heatmapInputModel.YAxisTitle" class="form-control" />
+        </div>
+        <div class="form-row">
+            <label>Chart Orientation:</label>
+            <InputSelect @bind-Value="heatmapInputModel.IsHorizontal" class="form-control">
+                <option value="true">Horizontal</option>
+                <option value="false">Vertical</option>
+            </InputSelect>
+        </div>
+        <div class="form-row">
+            <label>Max Cycles:</label>
+            <InputNumber @bind-Value="heatmapInputModel.MaxCycles" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-primary mt-3">Save Configuration</button>
+    </div>
+</EditForm>
+
+@code {
+    private HeatmapInputModel heatmapInputModel = new HeatmapInputModel();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConfiguration();
+    }
+
+    private async Task LoadConfiguration()
+    {
+        var filePath = Path.Combine(FileSystem.AppDataDirectory, "chartConfig.json");
+
+        if (File.Exists(filePath))
+        {
+            var json = await File.ReadAllTextAsync(filePath);
+            heatmapInputModel = JsonSerializer.Deserialize<HeatmapInputModel>(json) ?? new HeatmapInputModel();
+        }
+    }
+
+    private async Task SaveConfiguration()
+    {
+        var json = JsonSerializer.Serialize(heatmapInputModel);
+        var filePath = Path.Combine(FileSystem.AppDataDirectory, "chartConfig.json");
+
+        await File.WriteAllTextAsync(filePath, json);
+        await JSRuntime.InvokeVoidAsync("alert", "Configuration saved successfully.");
+    }
+
+    public class HeatmapInputModel
+    {
+        public int HighlightTouch { get; set; } = 1;
+        public string FigureName { get; set; } = "Activity Graph";
+        public string XAxisTitle { get; set; } = "X-Axis";
+        public string YAxisTitle { get; set; } = "Y-Axis";
+        public bool IsHorizontal { get; set; } = true;
+        public int? MaxCycles { get; set; }
+    }
+}
