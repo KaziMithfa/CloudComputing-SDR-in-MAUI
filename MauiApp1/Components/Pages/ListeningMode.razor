@@ -1,61 +1,62 @@
-﻿@page "/generatechart"
+﻿@page "/listeningmode"
 
 @using System.Text
 @using System.Text.Json
+@using Microsoft.AspNetCore.Components
 @using Azure.Storage.Blobs
 @using Azure.Storage.Blobs.Models
+@using Azure.Storage.Queues
+@using MauiApp1.Models
 @using MauiApp1.Services
 @using SkiaSharp
 @using Svg.Skia
 @using System.IO
-@using Microsoft.Maui.Storage
-@using MauiApp1.Models
 @inject CsvDataService CsvDataService
-@inject IConfigService ConfigService
 @inject IJSRuntime JSRuntime
+@inject IConfigService ConfigService
+@inject ListeningStateService ListeningStateService
 
-<div class="container mt-4">
-    <h2>Generate and Upload Charts</h2>
-    <p>Select the files you want to process, then click "Generate Charts".</p>
+<h3>Listening Mode</h3>
 
-    @if (unprocessedFiles.Any())
+<EditForm Model="@listeningModel">
+    <div class="form-group">
+        <label>
+            <InputCheckbox @bind-Value="useExistingConfig" @onchange="ToggleExistingConfig" />
+            Use Existing Configuration and Wait for Manual Upload
+        </label>
+    </div>
+
+    @if (!useExistingConfig)
     {
-        <div class="file-list mb-3">
-            @foreach (var file in unprocessedFiles)
-            {
-                <div class="form-check file-item">
-                    <input class="form-check-input" type="checkbox" @bind="file.IsSelected" />
-                    <label class="form-check-label @(file.IsFailed ? "text-danger" : "")">
-                        @file.Name @if (file.IsFailed)
-                        {
-                            <span>(Failed)</span>
-                        }
-                        else
-                        {
-                            <span>(not processed)</span>
-                        }
-                    </label>
-                </div>
-            }
+        <div class="form-group">
+            <label>Message:</label>
+            <InputText @bind-Value="listeningModel.Message" class="form-control" />
         </div>
-        <button @onclick="GenerateAndUploadChartImages" class="btn btn-primary" disabled="@(!unprocessedFiles.Any(f => f.IsSelected))">Generate Charts</button>
-    }
-    else
-    {
-        <div class="alert alert-info mt-3" role="alert">
-            No files available to process.
+        <div class="form-group">
+            <label>Queue Connection String:</label>
+            <InputText @bind-Value="listeningModel.QueueConnectionString" class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>Image Upload Container:</label>
+            <InputText @bind-Value="listeningModel.QueueName" class="form-control" />
         </div>
     }
 
-    @if (!string.IsNullOrEmpty(alertMessage))
-    {
-        <div class="alert @alertClass mt-3" role="alert">
-            @alertMessage
-        </div>
-    }
-</div>
+    <button type="button" class="btn btn-primary mt-3" @onclick="ToggleListening">
+        @((ListeningStateService.IsActive) ? "Stop Listening" : "Start Listening")
+    </button>
+</EditForm>
+
+@if (ListeningStateService.IsActive)
+{
+    <div class="mt-3">
+        <h4>Listening for messages...</h4>
+    </div>
+}
 
 @code {
+    private ListeningModel listeningModel = new ListeningModel();
+    private bool useExistingConfig = false;
     private ConfigModel configModel = new ConfigModel();
     private List<HashSet<int>> activeCellsColumn = new();
     private bool isHorizontal = false;
@@ -89,7 +90,6 @@
     protected override async Task OnInitializedAsync()
     {
         configModel = await ConfigService.LoadConfigAsync();
-        await LoadUnprocessedFilesAsync();
         await LoadConfigurationAsync();
     }
 
@@ -108,40 +108,95 @@
         }
     }
 
-    private async Task LoadUnprocessedFilesAsync()
+    private void ToggleExistingConfig(ChangeEventArgs e)
     {
-        var blobServiceClient = new BlobServiceClient(configModel.ConnectionString);
-        var containerClient = blobServiceClient.GetBlobContainerClient(configModel.FileContainerName);
+        useExistingConfig = (bool)e.Value;
 
-        unprocessedFiles.Clear();
-
-        await foreach (var blobItem in containerClient.GetBlobsAsync())
+        if (useExistingConfig)
         {
-            // Check if the file is already in the success or failed folder
-            if (!blobItem.Name.StartsWith("success/") && !blobItem.Name.StartsWith("failed/"))
-            {
-                unprocessedFiles.Add(new FileStatus { Name = blobItem.Name, IsFailed = false });
-            }
+            listeningModel.QueueConnectionString = string.Empty;
+            listeningModel.QueueName = string.Empty;
         }
-
-        StateHasChanged();
     }
 
-    public async Task GenerateAndUploadChartImages()
+    private async Task ToggleListening()
     {
-        var selectedFiles = unprocessedFiles.Where(f => f.IsSelected).ToList();
-
-        if (!selectedFiles.Any())
+        if (ListeningStateService.IsActive)
         {
-            alertMessage = "No files selected for processing.";
-            alertClass = "alert-danger";
-            return;
+            ListeningStateService.StopListening();
         }
+        else
+        {
+            if (!useExistingConfig)
+            {
+                // Prepare the message in JSON format
+                var messageObject = new MessageModel
+                    {
+                        Message = listeningModel.Message,
+                        ConnectionString = string.IsNullOrEmpty(listeningModel.QueueConnectionString) ? configModel.ConnectionString : listeningModel.QueueConnectionString,
+                        ContainerName = string.IsNullOrEmpty(listeningModel.QueueName) ? configModel.FileContainerName : listeningModel.QueueName
+                    };
 
-        var blobServiceClient = new BlobServiceClient(configModel.ConnectionString);
-        var containerClient = blobServiceClient.GetBlobContainerClient(configModel.FileContainerName);
+                string messageJson = JsonSerializer.Serialize(messageObject);
 
-        foreach (var file in selectedFiles)
+                // Upload the message to the Azure Queue
+                var queueClient = new QueueClient(configModel.ConnectionString, "message");
+                await queueClient.CreateIfNotExistsAsync();
+                if (await queueClient.ExistsAsync())
+                {
+                    await queueClient.SendMessageAsync(messageJson);
+                }
+            }
+            else
+            {
+                listeningModel.QueueConnectionString = configModel.ConnectionString;
+                listeningModel.QueueName = "message"; // Assuming a default queue name
+            }
+
+            ListeningStateService.StartListening();
+
+            // Ensure listening starts after the message is uploaded
+            _ = ListeningStateService.ListenToQueueAsync(
+                //useExistingConfig ? configModel.ConnectionString : listeningModel.QueueConnectionString,
+                configModel.ConnectionString,
+                "message",
+                ProcessQueueMessage);
+        }
+    }
+
+
+    private async Task ProcessQueueMessage(MessageModel message)
+    {
+        string connectionString = /* message.ConnectionString ??  */configModel.ConnectionString;
+        string containerName = /* message.ContainerName ??  */configModel.FileContainerName;
+        string imageConnectionString = message.ConnectionString ?? configModel.ConnectionString;
+        string imageContainerName = message.ContainerName ?? configModel.FileContainerName;
+        unprocessedFiles.Clear();
+
+        if (!string.IsNullOrEmpty(message.Message))
+        {
+            // Process the files based on the message content
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient(containerName);
+
+            await foreach (var blobItem in containerClient.GetBlobsAsync())
+            {
+                // Check if the file is already in the success or failed folder
+                if (!blobItem.Name.StartsWith("success/") && !blobItem.Name.StartsWith("failed/"))
+                {
+                    unprocessedFiles.Add(new FileStatus { Name = blobItem.Name, IsFailed = false });
+                }
+            }
+            await GenerateAndUploadChartImages(blobServiceClient, containerClient,
+                imageConnectionString, imageContainerName);
+
+            await JSRuntime.InvokeVoidAsync("alert", "Files will be processed based on the message.");
+        }
+    }
+    public async Task GenerateAndUploadChartImages(BlobServiceClient blobServiceClient, BlobContainerClient containerClient,
+    string imageConnectionString, string imageContainerName)
+    {
+        foreach (var file in unprocessedFiles.ToList())  // Use ToList() to avoid modifying the collection while iterating
         {
             var blobClient = containerClient.GetBlobClient(file.Name);
             var response = await blobClient.DownloadAsync();
@@ -161,7 +216,7 @@
                     var fileName = $"{Path.GetFileNameWithoutExtension(file.Name)}.png";
                     await SaveSvgAsImageAsync(svgContent, fileName);
 
-                    var imageBlobClient = new BlobClient(configModel.ConnectionString, configModel.ImageContainerName, fileName);
+                    var imageBlobClient = new BlobClient(imageConnectionString, imageContainerName, fileName);
                     using var imageStream = File.OpenRead(Path.Combine(FileSystem.CacheDirectory, fileName));
                     await imageBlobClient.UploadAsync(imageStream, true);
 
@@ -516,6 +571,12 @@
     {
         public string Name { get; set; }
         public bool IsFailed { get; set; }
-        public bool IsSelected { get; set; } = false;
+    }
+
+    public class ListeningModel
+    {
+        public string Message { get; set; }
+        public string QueueConnectionString { get; set; }
+        public string QueueName { get; set; }
     }
 }
