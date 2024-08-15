@@ -8,6 +8,7 @@
 
 @using System.Threading.Tasks
 @inject IConfigService ConfigService
+@inject IJSRuntime JSRuntime
 
 <EditForm Model="@configModel" OnValidSubmit="SaveConfiguration">
     <div class="form-group">
@@ -40,5 +41,6 @@
     private async Task SaveConfiguration()
     {
         await ConfigService.SaveConfigAsync(configModel);
+        await JSRuntime.InvokeVoidAsync("alert", "Azure Connection Establish");
     }
 }
