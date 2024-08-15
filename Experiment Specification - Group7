@@ -260,41 +260,6 @@ public class ExceptionHandler : IExceptionHandler
 }
 ```
 
-### MauiProgram
-
-The provided C# code defines a static class `MauiProgram`, which contains a static method `CreateMauiApp()` responsible for creating a Maui application instance.
-
-```csharp
-namespace MauiApp1
-{
-    public static class MauiProgram
-    {
-        public static MauiApp CreateMauiApp()
-        {
-            var builder = MauiApp.CreateBuilder();
-            builder
-                .UseMauiApp<App>()
-                .ConfigureFonts(fonts =>
-                {
-                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                });
-
-            builder.Services.AddMauiBlazorWebView();
-            builder.Services.AddSingleton<CsvDataService>();
-            builder.Services.AddSingleton<IPath, PathService>();
-
-#if DEBUG
-            builder.Services.AddBlazorWebViewDeveloperTools();
-            builder.Logging.AddDebug();
-#endif
-
-            return builder.Build();
-        }
-    }
-}
-
-```
-
 ### Input file handeling:
 
 The `CsvDataService` class provides methods for extracting data from CSV files or content. 
