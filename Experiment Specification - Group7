@@ -64,10 +64,51 @@ To setup the core application we have to add the corresponding .razor component 
 [HeatmapInputModel.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/HeatmapInputModel.cs)
 [ListeningState.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/ListeningState.cs)
 
+- Include [MauiProgram](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/saleque143/MauiApp1/MauiProgram.cs) class for service handeling.
+
 # Project Workflow:
 ![Diagram](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/diagram.png)
 
 # Code demonstration:
+
+## MauiProgram
+The provided C# code defines a static class `MauiProgram`, which contains a static method `CreateMauiApp()` responsible for creating a Maui application instance.
+
+```csharp
+namespace MauiApp1
+{
+    public static class MauiProgram
+    {
+        public static MauiApp CreateMauiApp()
+        {
+            var builder = MauiApp.CreateBuilder();
+            builder
+                .UseMauiApp<App>()
+                .ConfigureFonts(fonts =>
+                {
+                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                });
+
+            builder.Services.AddMauiBlazorWebView();
+            builder.Services.AddSingleton<CsvDataService>();
+            builder.Services.AddSingleton<ConfigurationService>();
+            builder.Services.AddSingleton<BlobService>();
+            builder.Services.AddSingleton<IPath, PathService>();
+            builder.Services.AddSingleton<IExceptionHandler, ExceptionHandler>();
+            builder.Services.AddSingleton<IConfigService, ConfigService>();
+            builder.Services.AddSingleton<ListeningStateService>();
+
+
+#if DEBUG
+            builder.Services.AddBlazorWebViewDeveloperTools();
+            builder.Logging.AddDebug();
+#endif
+
+            return builder.Build();
+        }
+    }
+}
+```
 
 ## BlobService Class
 
