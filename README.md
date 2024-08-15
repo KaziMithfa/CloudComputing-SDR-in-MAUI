@@ -1,4 +1,3 @@
-
 # ML 23/24-07 Implement ML22/23-8 Implement the SDR representation in the MAUI application with Azure Cloud Integration
 
 ## Abstract:
