@@ -51,23 +51,19 @@ To setup the core application we have to add the corresponding .razor component 
 [CsvUploadModel.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Models/CsvUploadModel.cs)
 
 - To inherit core functionalities add below service classes.
-[BlobService.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Services/BlobService.cs)
 [ConfigService.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Services/ConfigService.cs)
-[ConfigurationService.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Services/ConfigurationService.cs)
 [CsvDataService.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Services/CsvDataService.cs)
 [ExceptionHandler.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Services/ExceptionHandler.cs)
-[IPath.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Services/IPath.cs)
 [ListeningStateService.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Services/ListeningStateService.cs)
-[PathService.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/Services/PathService.cs)
 
 - Add below classess to operate inputes and drive application on listening mood.
 [HeatmapInputModel.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/HeatmapInputModel.cs)
 [ListeningState.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/MauiApp1/ListeningState.cs)
 
-- Include [MauiProgram](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/saleque143/MauiApp1/MauiProgram.cs) class for service handeling.
+- Include [MauiProgram.cs](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/saleque143/MauiApp1/MauiProgram.cs) class for service handeling.
 
 # Project Workflow:
-![Diagram](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/diagram.png)
+![Diagram](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(4).png)
 
 # Code demonstration:
 
@@ -110,31 +106,6 @@ namespace MauiApp1
 }
 ```
 
-## BlobService Class
-
-This `BlobService` class, is used for uploading files to an Azure Blob Storage container.
-
-### Class Definition
-
-```csharp
-public class BlobService
-{
-    private readonly BlobContainerClient _blobContainerClient;
-
-    public BlobService(string blobServiceEndpoint, string sasToken)
-    {
-        var blobUri = new Uri($"{blobServiceEndpoint}?{sasToken}");
-        _blobContainerClient = new BlobContainerClient(blobUri);
-    }
-
-    public async Task UploadFileAsync(string filePath)
-    {
-        var blobClient = _blobContainerClient.GetBlobClient(Path.GetFileName(filePath));
-        await blobClient.UploadAsync(filePath, true);
-    }
-}
-```
-
 ## ConfigService Class
 
 The `ConfigService` class implements the IConfigService interface. It provides concrete methods for saving and loading configuration data using JSON serialization.
@@ -163,104 +134,7 @@ public class ConfigService : IConfigService
 }
 ```
 
-## ConfigurationService Class
-
-The `ConfigurationService` class is responsible for saving configuration data. The implementation details of the storage mechanism are abstracted, allowing flexibility in how and where the configuration is saved (e.g., database, configuration file, etc.).
-
-### Class Definition
-
-```csharp
-public class ConfigurationService
-{
-    public Task SaveConfigurationAsync(ConfigurationModel configurationModel)
-    {
-        // Implement the logic to save the configuration
-        // For example, save to a database or a configuration file
-        return Task.CompletedTask;
-    }
-}
-```
-
-## ListeningStateService Class
-
-The `ListeningStateService` class is responsible for managing the state of a listening operation and processing messages from a queue asynchronously.
-
-### Class Definition
-
-```csharp
-public class ListeningStateService
-{
-    public bool IsActive { get; private set; } = false;
-
-    public event Action OnChange;
-
-    public void StartListening()
-    {
-        IsActive = true;
-        NotifyStateChanged();
-    }
-
-    public void StopListening()
-    {
-        IsActive = false;
-        NotifyStateChanged();
-    }
-
-    private void NotifyStateChanged() => OnChange?.Invoke();
-
-    public async Task ListenToQueueAsync(string connectionString, string queueName, Func<MessageModel, Task> processMessageAsync)
-    {
-        var queueClient = new QueueClient(connectionString, queueName);
-
-        while (IsActive)
-        {
-            try
-            {
-                var messages = await queueClient.ReceiveMessagesAsync(maxMessages: 1, visibilityTimeout: TimeSpan.FromSeconds(30));
-
-                if (messages.Value.Length > 0)
-                {
-                    var message = messages.Value[0];
-                    var messageContent = JsonSerializer.Deserialize<MessageModel>(message.MessageText);
-
-                    await processMessageAsync(messageContent);
-
-                    await queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Handle exceptions as needed
-            }
-
-            await Task.Delay(5000); // Adjust polling frequency as needed
-        }
-    }
-}
-```
-
-## ExceptionHandler Class
-
-The `ExceptionHandler` class is a concrete implementation of the IExceptionHandler interface. It provides a simple mechanism for logging exceptions to a file.
-
-### Class Definition
-
-```csharp
-public class ExceptionHandler : IExceptionHandler
-{
-    public void HandleException(Exception ex)
-    {
-        // Log the exception (you can also use other logging mechanisms here)
-        var logPath = Path.Combine(FileSystem.AppDataDirectory, "error.log");
-        using (var writer = new StreamWriter(logPath, true))
-        {
-            writer.WriteLine($"{DateTime.Now}: {ex}");
-        }
-    }
-}
-```
-
-### Input file handeling:
+## CsvDataService Class
 
 The `CsvDataService` class provides methods for extracting data from CSV files or content. 
 
@@ -343,6 +217,100 @@ namespace MauiApp1.Services
 }
 ```
 
+## ExceptionHandler Class
+
+The `ExceptionHandler` class is a concrete implementation of the IExceptionHandler interface. It provides a simple mechanism for logging exceptions to a file.
+
+### Class Definition
+
+```csharp
+public class ExceptionHandler : IExceptionHandler
+{
+    public void HandleException(Exception ex)
+    {
+        // Log the exception (you can also use other logging mechanisms here)
+        var logPath = Path.Combine(FileSystem.AppDataDirectory, "error.log");
+        using (var writer = new StreamWriter(logPath, true))
+        {
+            writer.WriteLine($"{DateTime.Now}: {ex}");
+        }
+    }
+}
+```
+
+## ListeningStateService Class
+
+The `ListeningStateService` class is responsible for managing the state of a listening operation and processing messages from a queue asynchronously.
+
+### Class Definition
+
+```csharp
+public class ListeningStateService
+{
+    public bool IsActive { get; private set; } = false;
+
+    public event Action OnChange;
+
+    public void StartListening()
+    {
+        IsActive = true;
+        NotifyStateChanged();
+    }
+
+    public void StopListening()
+    {
+        IsActive = false;
+        NotifyStateChanged();
+    }
+
+    private void NotifyStateChanged() => OnChange?.Invoke();
+
+    public async Task ListenToQueueAsync(string connectionString, string queueName, Func<MessageModel, Task> processMessageAsync)
+    {
+        var queueClient = new QueueClient(connectionString, queueName);
+
+        while (IsActive)
+        {
+            try
+            {
+                var messages = await queueClient.ReceiveMessagesAsync(maxMessages: 1, visibilityTimeout: TimeSpan.FromSeconds(30));
+
+                if (messages.Value.Length > 0)
+                {
+                    var message = messages.Value[0];
+                    var messageContent = JsonSerializer.Deserialize<MessageModel>(message.MessageText);
+
+                    await processMessageAsync(messageContent);
+
+                    await queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions as needed
+            }
+
+            await Task.Delay(5000); // Adjust polling frequency as needed
+        }
+    }
+}
+```
+## ListeningState Class
+
+### Overview
+The `ListeningState` class in the MauiApp1 namespace is a static class that manages the state of an application or component, specifically whether it is actively listening or not.
+
+```csharp
+// Set the listening state to active
+ListeningState.IsActive = true;
+
+// Check if the listening state is active
+if (ListeningState.IsActive)
+{
+    // Perform actions based on the active state
+}
+```
+
 ### HeatmapInputModel
 
 The following C# code defines the `HeatmapInputModel` class, which is utilized for managing input related to a heatmap:
@@ -375,43 +343,6 @@ public class HeatmapInputModel
     public int? MinTouch { get; set; }
     public int? MaxTouch { get; set; }
     public bool IsHorizontal { get; set; }
-}
-```
-
-### IPath
-
-The code defines an interface named `IPath` with a single method `GetFolderPath()`, which returns a string representing a folder path. It's part of the `MauiApp1.Services` namespace.
-
-```csharp
-namespace MauiApp1.Services
-{
-    public interface IPath
-    {
-        string GetFolderPath();
-    }
-}
-```
-
-### PathService
-
-The provided code defines a class named `PathService` within the `MauiApp1.Services` namespace. This class implements the `IPath` interface. The `GetFolderPath()` method of the `PathService` class returns the application data directory path using the `FileSystem.AppDataDirectory` property.
-
-In short:
-- The `PathService` class implements the `IPath` interface.
-- It has a single method `GetFolderPath()` which returns the application data directory path.
-
-This code is a part of a service that provides functionality related to file paths in a Maui application.
-
-```csharp
-namespace MauiApp1.Services
-{
-    public class PathService : IPath
-    {
-        public string GetFolderPath()
-        {
-            return FileSystem.AppDataDirectory;
-        }
-    }
 }
 ```
 
@@ -620,36 +551,30 @@ public async Task SaveSvgAsImageAsync(string svgContent, string filename)
 ### User manual to operate the Application intrgate with Azure Cloud.
 
 #### Step 1: At first  the user have to browse the Azure Connection menu and write the required fields. Such as File Container Name means the name of the Blob container where the CSV files will store and Image Container Name means the container where the generated image will store.
-![Azure Connection](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/Azure%20Connection%20Establishment.PNG)
+![Azure Connection](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(2).PNG)
 
 #### Step 2: Then the user  will browse the Chart Configuration Menu and write the necessary user defined fields for generating the SDR images.
-![Chart Configuration](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/User%20Define%20Chart%20Configuration.PNG)
+![Chart Configuration](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(12).PNG)
 
-#### Step 3: User can use the Listening Mode in 2 ways. One is user can give the message locally with required connection string and Image Upload Container (in this case it is the name of the File Container) and then press the start listening button.
-![Listening Mode From Local](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/Local%20App%20Listening%20Mode.PNG)
-
-#### Step 4: The next step is to browse the Upload CSV . Here the user will select a CSV file and upload it. By following this steps user can upload as many files as want.
+#### Step 3: The next step is to browse the Upload CSV . Here the user will select a CSV file and upload it. By following this steps user can upload as many files as want.
 ![Upload CSV Files](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/CSV%20Files%20Upload%20To%20The%20Cloud.PNG)
 
-#### Step 5: The last step of the application is the Generate Chart Menu. When the user will click on it all the uploaded files will be available here to select for generating SDR images .As the user will select the files and click Generate image button it will create the image , download it on the background and sends the image to the Image Container file.In this step , the user should stop the listening mode. The user can view this images in the Image Container file. Atlast user need to click on the right top side Red button called `Stop Listening`
-![Generate Chart](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/Generate%20Chart.PNG)
-![Generate Chart Confirmation](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/After%20SDR%20Generate%20and%20upload%20file%20to%20Cloud.PNG)
-![Image File Upload and Save In The Upload Blob Container](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/SDR%20Image%20Saved%20in%20the%20download%20Blob%20Storage.PNG)
-![Stop Listening](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/Stop%20Local%20Listening%20Option.PNG)
+#### Step 4:   The fourth step of the application is the Generate Chart Menu. When the user will click on it all the uploaded files will be available here to select for generating SDR images . As the user will select the files and click Generate image button it will create the image , download it on the background and sends the image to the Image Container file.
+![Generate Chart](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(3).PNG)
 
-#### Step 6: The step 3 can be completed by writing a message in the Queue as well. The structure of the message will be like this: 
-
-```json
-{
-    "Message": "Hey, all files are now in the container; you can start processing.",
+#### Step 5: The user can use the listening mode by selecting the "Use Existing Configuration and Wait for Manual Upload" checkbox in two ways. One is by selecting this option the user can again select CSV files and generate images and do the same process again with the same configuration. On the other hand , clicking on this checkbox the user can select CSV files and send a message from Queues.The structure of the message will be like this: "Message": "Hey, all files are now in the container; you can start processing.",
+} 
     "ConnectionString": "X",
     "ContainerName": "Y"
-}
-```
+} .  In the place of X the user have to write the connectionString of his own and in the place of Y the user have to write the Image container Name. 
 
-#### In the place of X the user have to write the connectionString of his own and in the place of Y the user have to write the Image container Name. Then the user can browse to the Listening Mode and check the Use Existing Configuration and wait for manual upload, as the user is  sending the message from the queue and start listening. The rest of the process is as before from step 4 to step 5.
-![Add Message to Azure Queue](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/Add%20Queue%20message%20for%20listening.PNG)
-![Listening for Azure Cloud Side](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/Azure%20Side%20Listening.PNG)
+![Next](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(5).PNG)
+![Next](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(1).PNG)
+![Next](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(8).PNG)
+
+#### Step 6: Finally, if the user of the application wants he or she can set a new configuration for the project by not  selecting the "Use Existing Configuration and Wait for Manual Upload" checkbox and  do the same process for the new configuration.
+
+![Manual Message](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(6).PNG)
 
 ## Conclusion:
 This project demonstrates the effective integration of cloud computing with .NET MAUI, utilizing Microsoft Azure to enhance the generation and storage of Sparse Distributed Representations (SDRs) using Scalable Vector Graphics (SVG). By incorporating Azure queue messaging, the application facilitates seamless data transfer between local devices and cloud storage, offering flexibility and control. The project highlights the benefits of cloud integration, including scalable storage, efficient resource management, and real-time feedback. It also lays the groundwork for future improvements, such as enhanced collaboration, stronger security, and better handling of larger datasets.
