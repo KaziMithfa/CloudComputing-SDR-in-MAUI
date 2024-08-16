@@ -20,6 +20,7 @@ namespace MauiApp1.Services
     {
         private readonly string configFilePath = Path.Combine(FileSystem.AppDataDirectory, "config.json");
 
+        //saving connection string in a locall json file
         public async Task SaveConfigAsync(ConfigModel config)
         {
             var json = JsonSerializer.Serialize(config);

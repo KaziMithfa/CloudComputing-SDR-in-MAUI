@@ -46,6 +46,7 @@
         await LoadConfiguration();
     }
 
+    //Loading Configuration from saved json file
     private async Task LoadConfiguration()
     {
         var filePath = Path.Combine(FileSystem.AppDataDirectory, "chartConfig.json");
@@ -57,6 +58,7 @@
         }
     }
 
+    //saving the configuration locally in json file
     private async Task SaveConfiguration()
     {
         var json = JsonSerializer.Serialize(heatmapInputModel);

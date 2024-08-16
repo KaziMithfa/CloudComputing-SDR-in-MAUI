@@ -95,6 +95,7 @@
 
     private async Task LoadConfigurationAsync()
     {
+        //loading charts configuration from locally saved json file
         var filePath = Path.Combine(FileSystem.AppDataDirectory, "chartConfig.json");
         if (File.Exists(filePath))
         {
@@ -115,11 +116,13 @@
 
         unprocessedFiles.Clear();
 
+        //running a loop on each file in the file container
         await foreach (var blobItem in containerClient.GetBlobsAsync())
         {
             // Check if the file is already in the success or failed folder
             if (!blobItem.Name.StartsWith("success/") && !blobItem.Name.StartsWith("failed/"))
             {
+                //adding the file as unprocessed file in the list
                 unprocessedFiles.Add(new FileStatus { Name = blobItem.Name, IsFailed = false });
             }
         }
@@ -129,6 +132,7 @@
 
     public async Task GenerateAndUploadChartImages()
     {
+        //generating a list of selected files from the unprocessed files list
         var selectedFiles = unprocessedFiles.Where(f => f.IsSelected).ToList();
 
         if (!selectedFiles.Any())
@@ -141,6 +145,7 @@
         var blobServiceClient = new BlobServiceClient(configModel.ConnectionString);
         var containerClient = blobServiceClient.GetBlobContainerClient(configModel.FileContainerName);
 
+        //running a loop on selected files to use in chart configuration to generate charts
         foreach (var file in selectedFiles)
         {
             var blobClient = containerClient.GetBlobClient(file.Name);
@@ -155,20 +160,23 @@
 
                     var result = await CsvDataService.ReadDataFromCsvAsync(stream);
                     activeCellsColumn = result.Item1;
+                    //generating the chart
                     await GenerateChartAsync();
 
                     var svgContent = GenerateSvgContent();
                     var fileName = $"{Path.GetFileNameWithoutExtension(file.Name)}.png";
+                    //saving the image as svg
                     await SaveSvgAsImageAsync(svgContent, fileName);
 
                     var imageBlobClient = new BlobClient(configModel.ConnectionString, configModel.ImageContainerName, fileName);
                     using var imageStream = File.OpenRead(Path.Combine(FileSystem.CacheDirectory, fileName));
+                    //uploading the file in image container
                     await imageBlobClient.UploadAsync(imageStream, true);
 
-                    // Move original file to "success" folder
+                    // Moving original file to "success" folder
                     await MoveBlobToFolderAsync(containerClient, blobClient, "success");
 
-                    // Remove successfully processed file from the list
+                    // Removing successfully processed file from the list
                     unprocessedFiles.Remove(file);
                 }
 
@@ -177,10 +185,10 @@
             }
             catch (Exception ex)
             {
-                // Move original file to "failed" folder
+                // Moving original file to "failed" folder
                 await MoveBlobToFolderAsync(containerClient, blobClient, "failed");
 
-                // Mark the file as failed
+                // Marking the file as failed
                 file.IsFailed = true;
 
                 alertMessage = $"Some files failed to process. Please check the list.";
