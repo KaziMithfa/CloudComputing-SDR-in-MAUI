@@ -111,20 +111,29 @@
 
     private async Task LoadUnprocessedFilesAsync()
     {
-        var blobServiceClient = new BlobServiceClient(configModel.ConnectionString);
-        var containerClient = blobServiceClient.GetBlobContainerClient(configModel.FileContainerName);
-
-        unprocessedFiles.Clear();
-
-        //running a loop on each file in the file container
-        await foreach (var blobItem in containerClient.GetBlobsAsync())
+        if (string.IsNullOrEmpty(configModel.ConnectionString) || string.IsNullOrEmpty(configModel.FileContainerName))
         {
-            // Check if the file is already in the success or failed folder
-            if (!blobItem.Name.StartsWith("success/") && !blobItem.Name.StartsWith("failed/"))
+            alertMessage = "Configuration file not found.";
+            alertClass = "alert-danger";
+        }
+        else
+        {
+            var blobServiceClient = new BlobServiceClient(configModel.ConnectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient(configModel.FileContainerName);
+
+            unprocessedFiles.Clear();
+
+            //running a loop on each file in the file container
+            await foreach (var blobItem in containerClient.GetBlobsAsync())
             {
-                //adding the file as unprocessed file in the list
-                unprocessedFiles.Add(new FileStatus { Name = blobItem.Name, IsFailed = false });
+                // Check if the file is already in the success or failed folder
+                if (!blobItem.Name.StartsWith("success/") && !blobItem.Name.StartsWith("failed/"))
+                {
+                    //adding the file as unprocessed file in the list
+                    unprocessedFiles.Add(new FileStatus { Name = blobItem.Name, IsFailed = false });
+                }
             }
+
         }
 
         StateHasChanged();
