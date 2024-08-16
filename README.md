@@ -557,19 +557,25 @@ public async Task SaveSvgAsImageAsync(string svgContent, string filename)
 ![Chart Configuration](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(12).PNG)
 
 #### Step 3: The next step is to browse the Upload CSV . Here the user will select a CSV file and upload it. By following this steps user can upload as many files as want.
-![Upload CSV Files](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/CSV%20Files%20Upload%20To%20The%20Cloud.PNG)
+![Upload CSV Files](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(10).PNG)
 
 #### Step 4:   The fourth step of the application is the Generate Chart Menu. When the user will click on it all the uploaded files will be available here to select for generating SDR images . As the user will select the files and click Generate image button it will create the image , download it on the background and sends the image to the Image Container file.
 ![Generate Chart](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(3).PNG)
 
 #### Step 5: The user can use the listening mode by selecting the "Use Existing Configuration and Wait for Manual Upload" checkbox in two ways. One is by selecting this option the user can again select CSV files and generate images and do the same process again with the same configuration. On the other hand , clicking on this checkbox the user can select CSV files and send a message from Queues.The structure of the message will be like this: "Message": "Hey, all files are now in the container; you can start processing.",
-} 
+
+```csharp
+{
+    "Message": "Hey, all files are now in the container; you can start processing.",
     "ConnectionString": "X",
     "ContainerName": "Y"
-} .  In the place of X the user have to write the connectionString of his own and in the place of Y the user have to write the Image container Name. 
+}
+```
 
-![Next](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(5).PNG)
+- In the place of X the user have to write the connectionString of his own and in the place of Y the user have to write the Image container Name. 
+
 ![Next](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(1).PNG)
+![Next](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(5).PNG)
 ![Next](https://github.com/KaziMithfa/CloudComputing-SDR-in-MAUI/blob/main/App%20User%20Manual%20Images/1%20(8).PNG)
 
 #### Step 6: Finally, if the user of the application wants he or she can set a new configuration for the project by not  selecting the "Use Existing Configuration and Wait for Manual Upload" checkbox and  do the same process for the new configuration.
