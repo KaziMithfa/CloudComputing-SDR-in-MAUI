@@ -17,9 +17,6 @@ namespace MauiApp1
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddSingleton<CsvDataService>();
-            builder.Services.AddSingleton<ConfigurationService>();
-            builder.Services.AddSingleton<BlobService>();
-            builder.Services.AddSingleton<IPath, PathService>();
             builder.Services.AddSingleton<IExceptionHandler, ExceptionHandler>();
             builder.Services.AddSingleton<IConfigService, ConfigService>();
             builder.Services.AddSingleton<ListeningStateService>();

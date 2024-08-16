@@ -26,7 +26,10 @@ namespace MauiApp1.Services
             NotifyStateChanged();
         }
 
+        //used to notify user about listening mode being active or deactive
         private void NotifyStateChanged() => OnChange?.Invoke();
+
+        //used to periodically check for new messages in the azure queue
         public async Task ListenToQueueAsync(string connectionString, string queueName, Func<MessageModel, Task> processMessageAsync)
         {
             var queueClient = new QueueClient(connectionString, queueName);
@@ -52,7 +55,7 @@ namespace MauiApp1.Services
 
                 }
 
-                await Task.Delay(5000); // Adjust polling frequency as needed
+                await Task.Delay(5000); // task frequency 5 seconds
             }
         }
     }
